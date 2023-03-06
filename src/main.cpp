@@ -115,6 +115,28 @@ void getPID()
   Serial.println(Kd);
 }
 
+// Get the formatted temperature display for the given value
+String getTemperatureDisplay(float inputTemp)
+{
+  return String(inputTemp, 1) + (char)223 + "C";
+}
+
+float getTemperature()
+{
+  int reading = analogRead(THERMISTOR_PIN);                                                                  // Read analog input from thermistor pin
+  float resistance = REF_RESISTOR * (1023.0 / reading - 1.0);                                                // Calculate thermistor resistance using voltage divider formula
+  float temperature = 1.0 / (1.0 / 298.15 + 1.0 / 3977.0 * log(resistance / ROOM_TEMP_RESISTANCE)) - 273.15; // Calculate temperature using Steinhart-Hart equation
+  return temperature;
+}
+
+String formatTime(unsigned long millis)
+{
+  unsigned long seconds = millis / 1000;
+  unsigned long minutes = seconds / 60;
+  seconds %= 60;
+  return String(minutes) + ":" + String(seconds);
+}
+
 void setPID()
 {
   String param = sCmd.next();
@@ -411,20 +433,6 @@ void programComplete()
   }
 }
 
-// Get the formatted temperature display for the given value
-String getTemperatureDisplay(float inputTemp)
-{
-  return String(inputTemp, 1) + (char)223 + "C";
-}
-
-float getTemperature()
-{
-  int reading = analogRead(THERMISTOR_PIN);                                                                  // Read analog input from thermistor pin
-  float resistance = REF_RESISTOR * (1023.0 / reading - 1.0);                                                // Calculate thermistor resistance using voltage divider formula
-  float temperature = 1.0 / (1.0 / 298.15 + 1.0 / 3977.0 * log(resistance / ROOM_TEMP_RESISTANCE)) - 273.15; // Calculate temperature using Steinhart-Hart equation
-  return temperature;
-}
-
 void readTemperature()
 {
   // Read the temperature from the MAX6675 module every 1 second
@@ -450,14 +458,6 @@ void readTemperature()
     Input = movingAverage;
     readTemperatureTimer = millis();
   }
-}
-
-String formatTime(unsigned long millis)
-{
-  unsigned long seconds = millis / 1000;
-  unsigned long minutes = seconds / 60;
-  seconds %= 60;
-  return String(minutes) + ":" + String(seconds);
 }
 
 void displayInit()
