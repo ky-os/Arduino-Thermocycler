@@ -301,6 +301,23 @@ void cooldown()
   }
 }
 
+void getPrograms()
+{
+  for (int i = 0; i < 4; i++)
+  {
+
+    ThermocycleStep step = program[i];
+
+    Serial.print(step.getName());
+    Serial.print("\t");
+    Serial.print(getTemperatureDisplay(step.getTemperature()));
+    Serial.print("\t");
+    Serial.print(formatTime(step.getDuration() * 1000));
+    Serial.print("\t");
+    Serial.println(step.getRampRate());
+  }
+}
+
 // Function to start the thermocycling program
 void startProgram()
 {
@@ -753,6 +770,8 @@ void setup()
   sCmd.addCommand("GET_PID", getPID);
   sCmd.addCommand("PID_TUNE", PIDTune);
   sCmd.addCommand("PRE_HEAT", preHeat);
+  sCmd.addCommand("COOLDOWN", cooldown);
+  sCmd.addCommand("GET_PROGRAMS", getPrograms);
 
   // Initialize LCD display
   displayInit();
@@ -792,13 +811,43 @@ void loop()
 }
 
 /*
-Denaturation
-Annealing
-Extension
-Final Extension
+
+arduino thermocycle serial command handling
+
+to start the program this is the command
+
+START
+
+to stop the program this is the command
+
+STOP
+
+to preheat the heat block this is the command with a default temperature of 90c
+
+PRE_HEAT
+
+to set preheat temperature this is the command
+
+PRE_HEAT TARGET=95
+
+to cooldown the heat block this is the command
+
+COOLDOWN
+
+to get the PID value this is the command
 
 GET_PID
 
-SET_PID P=2 I=1 D=1
+to set the PID tune value this is the command
+
+PID_TUNE SET_PID P=2 I=1 D=1
+
+to set the PID tune temperature this is the command
+
+PID_TUNE TARGET=95
+
+to get the list of program this is the command
+
+GET_PROGRAMS
 
 */
