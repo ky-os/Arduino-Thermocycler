@@ -1,11 +1,10 @@
 
 // Include necessary libraries
 #include <SerialCommand.h>
-#include <MAX6675.h>
-#include <LiquidCrystal_I2C.h>
 #include <PID_v1.h>
 #include <ThermocycleStep.h>
 #include <EEPROM.h>
+#include <ThermocyclerDisplay.h>
 
 #define THERMISTOR_PIN A2           // Pin connected to thermistor
 #define REF_RESISTOR 10000          // Resistance of the reference resistor in ohms
@@ -15,29 +14,25 @@
 SerialCommand sCmd;
 
 // Define the number of samples to use in the moving average filter
-int numSamples = 10;
+const int numSamples = 10;
 
 // Define an array to store the previous temperature samples
 double samples[10];
 
 // Define pins for the motor driver
-int powerSupplyVoltage = 24;
-int motorVoltage = 15;
-double powerLimit = (motorVoltage / powerSupplyVoltage) * 255; // Calculate the maximum power limit
-int motorPin1 = 6;
-int motorPin2 = 5;
-int enablePin1 = 3;
-int enablePin2 = 4;
+const int motorPin1 = 6;
+const int motorPin2 = 5;
+const int enablePin1 = 3;
+const int enablePin2 = 4;
 
 // Define pin for the heater
-int heaterPin = 10;
+const int heaterPin = 10;
 
 // Define power pins
-int vcc[] = {2, 15, 12}; // List of VCC pin numbers
-int gnd[] = {7, 14};     // List of GND pin numbers
+const int vcc[] = {2, 15, 12}; // List of VCC pin numbers
+const int gnd[] = {7, 14};     // List of GND pin numbers
 
-// Define pins for the LCD display
-LiquidCrystal_I2C lcd(0x27, 16, 2);
+ThermocyclerDisplay thermocyclerDisplay;
 
 // Define the PID parameters
 double Setpoint, Input, Output;
@@ -90,19 +85,7 @@ unsigned int currentStep = 0;
 unsigned long startTime = 0;
 unsigned long readTemperatureTimer = 0; // Timer for temperature
 unsigned long serialTimer = 0;          // Timer for serial communication
-unsigned long displayTimer = 0;         // Timer for LCD display
 ThermocycleStep currentThermocycleStep = program[currentStep];
-
-// Define cycle character for LCD display
-byte cycleChar[] = {
-    B00000,
-    B11100,
-    B10010,
-    B10111,
-    B10010,
-    B10010,
-    B11110,
-    B00000};
 
 void getPID()
 {
@@ -115,26 +98,12 @@ void getPID()
   Serial.println(Kd);
 }
 
-// Get the formatted temperature display for the given value
-String getTemperatureDisplay(float inputTemp)
-{
-  return String(inputTemp, 1) + (char)223 + "C";
-}
-
 float getTemperature()
 {
   int reading = analogRead(THERMISTOR_PIN);                                                                  // Read analog input from thermistor pin
   float resistance = REF_RESISTOR * (1023.0 / reading - 1.0);                                                // Calculate thermistor resistance using voltage divider formula
   float temperature = 1.0 / (1.0 / 298.15 + 1.0 / 3977.0 * log(resistance / ROOM_TEMP_RESISTANCE)) - 273.15; // Calculate temperature using Steinhart-Hart equation
   return temperature;
-}
-
-String formatTime(unsigned long millis)
-{
-  unsigned long seconds = millis / 1000;
-  unsigned long minutes = seconds / 60;
-  seconds %= 60;
-  return String(minutes) + ":" + String(seconds);
 }
 
 void setPID()
@@ -323,20 +292,46 @@ void cooldown()
   }
 }
 
+int digitCount(int num)
+{
+  int count = 0;
+  while (num > 0)
+  {
+    count++;
+    num /= 10;
+  }
+  return count;
+}
+
 void getPrograms()
 {
+  Serial.println("\nThermocycle program:\n");
+  Serial.println("|Step Name     |Temperature (C)|Duration (s)|Ramp Rate|");
+
   for (int i = 0; i < 4; i++)
   {
 
     ThermocycleStep step = program[i];
+    // Get the duration of the current step
+    unsigned long duration = step.getDuration();
 
+    Serial.print("|");
     Serial.print(step.getName());
-    Serial.print("\t");
-    Serial.print(getTemperatureDisplay(step.getTemperature()));
-    Serial.print("\t");
-    Serial.print(formatTime(step.getDuration() * 1000));
-    Serial.print("\t");
-    Serial.println(step.getRampRate());
+    Serial.print(" ");
+
+    Serial.print("|");
+    Serial.print(step.getTemperature());
+    Serial.print(" ");
+
+    Serial.print("|");
+    Serial.print(duration);
+    Serial.print(" ");
+
+    Serial.print("|");
+    Serial.print(step.getRampRate());
+    Serial.print(" ");
+
+    Serial.println("|");
   }
 }
 
@@ -379,11 +374,7 @@ void stopProgram()
     analogWrite(enablePin2, 0);
 
     // Display message on the LCD screen
-    lcd.clear();
-    lcd.setCursor(0, 0);
-    lcd.print("Cycle stopped!");
-    lcd.setCursor(0, 1);
-    lcd.print("Remove samples.");
+    thermocyclerDisplay.programStopped();
 
     // Print message to serial monitor
     Serial.println("Program stopped!");
@@ -411,11 +402,7 @@ void programComplete()
     analogWrite(enablePin2, 0);
 
     // Display message on the LCD screen
-    lcd.clear();
-    lcd.setCursor(0, 0);
-    lcd.print("Cycle complete!");
-    lcd.setCursor(0, 1);
-    lcd.print("Remove samples.");
+    thermocyclerDisplay.programComplete();
 
     // Print message to serial monitor
     Serial.println("Program complete!");
@@ -457,124 +444,6 @@ void readTemperature()
 
     Input = movingAverage;
     readTemperatureTimer = millis();
-  }
-}
-
-void displayInit()
-{
-  // Initialize the LCD display
-  lcd.init();
-  lcd.clear();
-  lcd.backlight();
-  lcd.createChar(0, cycleChar);
-
-  // Display initialization message for 3 seconds
-  lcd.setCursor(0, 0);
-  lcd.print("Thermocycler");
-  lcd.setCursor(0, 1);
-  lcd.print("Initializing...");
-  delay(3000);
-  lcd.clear();
-}
-
-void display(String stepName, int currentCycle, float inputTemp, float setpointTemp, unsigned long duration, unsigned long elapsedTime)
-{
-  if (millis() - displayTimer >= 1000)
-  {
-    lcd.clear();
-
-    // Display the current step name and cycle number
-    lcd.setCursor(0, 0);
-    lcd.print(stepName);
-    lcd.setCursor(14, 0);
-    lcd.print(String(currentCycle));
-    lcd.write(0);
-
-    // Display the current temperature
-    lcd.setCursor(0, 1);
-    lcd.print(getTemperatureDisplay(Input));
-
-    // Display the time elapsed and remaining duration
-    lcd.setCursor(6, 1);
-    lcd.print(formatTime(elapsedTime));
-    lcd.print("/");
-    lcd.print(formatTime(duration));
-    displayTimer = millis();
-  }
-}
-
-void displayEquilibrating(float inputTemp, float setpointTemp)
-{
-  if (millis() - displayTimer >= 1000)
-  {
-    lcd.clear();
-
-    // Display "Equilibrating" message
-    lcd.setCursor(0, 0);
-    lcd.print("Equilibrating");
-
-    // Display the current temperature and setpoint temperature
-    lcd.setCursor(0, 1);
-    lcd.print(getTemperatureDisplay(inputTemp));
-    lcd.print(" -> ");
-    lcd.print(getTemperatureDisplay(setpointTemp));
-    displayTimer = millis();
-  }
-}
-
-void displayIdle(float inputTemp, float setpointTemp)
-{
-  if (millis() - displayTimer >= 1000)
-  {
-    lcd.clear();
-
-    // Display "Idle" message
-    lcd.setCursor(0, 0);
-    lcd.print("Idle");
-
-    if (preHeating)
-    {
-      lcd.setCursor(6, 0);
-      lcd.print("- Pre-heat");
-      // Display the current temperature and setpoint temperature
-      lcd.setCursor(0, 1);
-      lcd.print(getTemperatureDisplay(inputTemp));
-      lcd.print(" -> ");
-      lcd.print(getTemperatureDisplay(setpointTemp));
-    }
-    else
-    {
-      // Display the current temperature
-      lcd.setCursor(0, 1);
-      lcd.print(getTemperatureDisplay(inputTemp));
-    }
-
-    displayTimer = millis();
-  }
-}
-
-void displayTuning(float inputTemp)
-{
-  if (millis() - displayTimer >= 1000)
-  {
-    lcd.clear();
-
-    // Display "Tuning" message
-    lcd.setCursor(0, 0);
-    lcd.print("PID Tuning");
-
-    lcd.setCursor(12, 0);
-    lcd.print(getTemperatureDisplay(inputTemp));
-
-    // Display the current PID
-    lcd.setCursor(0, 1);
-    lcd.print("P");
-    lcd.print(Kp, 1);
-    lcd.print(" I");
-    lcd.print(Ki, 2);
-    lcd.print(" D");
-    lcd.print(Kd, 1);
-    displayTimer = millis();
   }
 }
 
@@ -625,10 +494,8 @@ void programRunning()
     unsigned long duration = currentThermocycleStep.getDuration();
 
     // Display the current temperature and thermocycle information
-    if (millis() - displayTimer >= 1000)
-    {
-      display(currentThermocycleStep.getName(), cycleCount, Input, Setpoint, duration * 1000, (millis() - startTime));
-    }
+
+    thermocyclerDisplay.display(currentThermocycleStep.getName(), cycleCount, Input, duration * 1000, (millis() - startTime));
 
     // Check if the current thermocycle step is complete
     if (millis() - startTime >= duration * 1000)
@@ -684,10 +551,8 @@ void programRunning()
   else
   {
     // If the temperature is not within the tolerance range, display the equilibrating temperature
-    if (millis() - displayTimer >= 1000)
-    {
-      displayEquilibrating(Input, Setpoint);
-    }
+    thermocyclerDisplay.displayEquilibrating(Input, Setpoint);
+
     startTime = millis();
   }
 }
@@ -698,7 +563,7 @@ void programIdle()
   {
     updateTemperatureControl();
   }
-  displayIdle(Input, Setpoint);
+  thermocyclerDisplay.displayIdle(Input, Setpoint, preHeating);
 }
 
 void dataSerialLog()
@@ -720,7 +585,7 @@ void dataSerialLog()
 void programPIDTune()
 {
   updateTemperatureControl();
-  displayTuning(Input);
+  thermocyclerDisplay.displayTuning(Input, Kp, Ki, Kd);
   dataSerialLog();
 }
 
@@ -774,7 +639,7 @@ void setup()
   sCmd.addCommand("GET_PROGRAMS", getPrograms);
 
   // Initialize LCD display
-  displayInit();
+  thermocyclerDisplay.init();
 }
 
 void loop()
