@@ -1,3 +1,52 @@
+/*
+
+arduino thermocycle serial command handling
+
+to start the program this is the command
+
+START
+
+to stop the program this is the command
+
+STOP
+
+to preheat the heat block this is the command with a default temperature of 90c
+
+PRE_HEAT
+
+to set preheat temperature this is the command
+
+PRE_HEAT T=95
+
+to cooldown the heat block this is the command
+
+COOLDOWN
+
+to get the PID value this is the command
+
+GET_PID
+
+to set the PID tune value this is the command
+
+PID_TUNE SET_PID P=2 I=1 D=1
+
+to set the PID tune temperature this is the command
+
+PID_TUNE T=95
+
+to get the list of program this is the command
+
+GET_PROGRAMS
+
+to set the program this is the command
+
+SET_PROGRAM S1 T=95 D=50 RR=1
+
+to set the program cycle this is the command
+
+SET_PROGRAM CYCLES=90
+
+*/
 
 // Include necessary libraries
 #include <SerialCommand.h>
@@ -349,6 +398,9 @@ void getPrograms()
 
     Serial.println(F("|"));
   }
+
+  Serial.print(F("No. of cycles: "));
+  Serial.println(numCycles);
 }
 
 // Function to start the thermocycling program
@@ -383,71 +435,80 @@ void setProgram()
 
   if (param != NULL)
   {
-    int index;
 
-    if (param.startsWith("S1"))
+    if (param.startsWith("CYCLES="))
     {
-      index = 0;
-    }
-    if (param.startsWith("S2"))
-    {
-      index = 1;
-    }
-    if (param.startsWith("S3"))
-    {
-      index = 2;
-    }
-    if (param.startsWith("F"))
-    {
-      index = 3;
-    }
-
-    if (index >= 0 && index < 4)
-    {
-      ThermocycleStep step = program[index]; // set the program step at the given index
-
-      double temp = step.getTemperature();
-      int duration = step.getDuration();
-      double rampRate = step.getRampRate();
-
-      param = sCmd.next();
-
-      while (param != NULL)
-      {
-
-        if (param.startsWith("T="))
-        {
-          temp = param.substring(2).toDouble();
-        }
-        else if (param.startsWith("D="))
-        {
-          duration = param.substring(2).toDouble();
-        }
-        else if (param.startsWith("RR="))
-        {
-          rampRate = param.substring(3).toDouble();
-        }
-        else
-        {
-          Serial.println(F("Invalid parameter"));
-          return;
-        }
-
-        param = sCmd.next();
-      }
-
-      step.setDuration(duration);
-      step.setTemperature(temp);
-      step.setRampRate(rampRate);
-
-      program[index] = step;
-
-      Serial.print(step.getName());
-      Serial.println(F(" program set successfully."));
+      numCycles = param.substring(7).toInt();
     }
     else
     {
-      Serial.println(F("Invalid program index."));
+
+      int index;
+
+      if (param.startsWith("S1"))
+      {
+        index = 0;
+      }
+      if (param.startsWith("S2"))
+      {
+        index = 1;
+      }
+      if (param.startsWith("S3"))
+      {
+        index = 2;
+      }
+      if (param.startsWith("F"))
+      {
+        index = 3;
+      }
+
+      if (index >= 0 && index < 4)
+      {
+        ThermocycleStep step = program[index]; // set the program step at the given index
+
+        double temp = step.getTemperature();
+        int duration = step.getDuration();
+        double rampRate = step.getRampRate();
+
+        param = sCmd.next();
+
+        while (param != NULL)
+        {
+
+          if (param.startsWith("T="))
+          {
+            temp = param.substring(2).toDouble();
+          }
+          else if (param.startsWith("D="))
+          {
+            duration = param.substring(2).toDouble();
+          }
+          else if (param.startsWith("RR="))
+          {
+            rampRate = param.substring(3).toDouble();
+          }
+          else
+          {
+            Serial.println(F("Invalid parameter"));
+            return;
+          }
+
+          param = sCmd.next();
+        }
+
+        step.setDuration(duration);
+        step.setTemperature(temp);
+        step.setRampRate(rampRate);
+
+        program[index] = step;
+
+        Serial.print(step.getName());
+        Serial.println(F(" program set successfully."));
+      }
+      else
+      {
+        Serial.println(F("Invalid program index."));
+      }
     }
   }
 }
@@ -569,11 +630,11 @@ void updateTemperatureControl()
 void programRunning()
 {
 
-  //// Set the target temperature based on the current step of the thermocycle with ramp rate
-  //// Setpoint = currentThermocycleStep.getTemperature() + (currentThermocycleStep.getRampRate() * (millis() - startTime) / 1000);
+  // Set the target temperature based on the current step of the thermocycle with ramp rate
+  Setpoint = currentThermocycleStep.getTemperature() + (currentThermocycleStep.getRampRate() * (millis() - startTime) / 1000);
 
-  // Set the target temperature based on the current step of the thermocycle
-  Setpoint = currentThermocycleStep.getTemperature();
+  // // Set the target temperature based on the current step of the thermocycle
+  // Setpoint = currentThermocycleStep.getTemperature();
 
   // Run the Peltier element to heat/cool the system
   updateTemperatureControl();
@@ -765,51 +826,3 @@ void loop()
     dataSerialLog(); // Execute the code for logging data to serial port
   }
 }
-
-/*
-
-arduino thermocycle serial command handling
-
-to start the program this is the command
-
-START
-
-to stop the program this is the command
-
-STOP
-
-to preheat the heat block this is the command with a default temperature of 90c
-
-PRE_HEAT
-
-to set preheat temperature this is the command
-
-PRE_HEAT T=95
-
-to cooldown the heat block this is the command
-
-COOLDOWN
-
-to get the PID value this is the command
-
-GET_PID
-
-to set the PID tune value this is the command
-
-PID_TUNE SET_PID P=2 I=1 D=1
-
-to set the PID tune temperature this is the command
-
-PID_TUNE T=95
-
-to get the list of program this is the command
-
-GET_PROGRAMS
-
-to set the program this is the command
-
-SET_PROGRAM S1 T=95 D=50 RR=1
-
-*/
-
-
