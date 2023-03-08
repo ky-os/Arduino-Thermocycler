@@ -72,7 +72,7 @@ int cycleCount = 0;
 int numCycles = 2;
 
 // Define the thermocycler program as a sequence of ThermocycleStep objects
-const ThermocycleStep program[] = {
+ThermocycleStep program[] = {
     //(in °C, in seconds, ramp rate)
     ThermocycleStep("Denaturation", 95, 30, 0), // Denaturation
     ThermocycleStep("Annealing", 55, 30, 0),    // Annealing
@@ -229,9 +229,9 @@ void PIDTune()
       Serial.println(F("PID values updated and saved to EEPROM."));
     }
     // set the target value
-    else if (param.startsWith("TARGET="))
+    else if (param.startsWith("T="))
     {
-      Setpoint = param.substring(7).toDouble();              // get the target value and convert it to double
+      Setpoint = param.substring(2).toDouble();              // get the target value and convert it to double
       Serial.println("Target sets to: " + String(Setpoint)); // print message to serial monitor
     }
     param = sCmd.next(); // get the next parameter from serial monitor
@@ -254,7 +254,7 @@ void preHeat()
     if (param != NULL)
     {
       // set the target value
-      if (param.startsWith("TARGET="))
+      if (param.startsWith("T="))
       {
         Setpoint = param.substring(7).toDouble();              // get the target value and convert it to double
         Serial.println("Target sets to: " + String(Setpoint)); // print message to serial monitor
@@ -374,6 +374,81 @@ void startProgram()
   else
   {
     Serial.println(F("Program already running"));
+  }
+}
+
+void setProgram()
+{
+  String param = sCmd.next(); // get the next parameter from serial monitor
+
+  if (param != NULL)
+  {
+    int index;
+
+    if (param.startsWith("S1"))
+    {
+      index = 0;
+    }
+    if (param.startsWith("S2"))
+    {
+      index = 1;
+    }
+    if (param.startsWith("S3"))
+    {
+      index = 2;
+    }
+    if (param.startsWith("F"))
+    {
+      index = 3;
+    }
+
+    if (index >= 0 && index < 4)
+    {
+      ThermocycleStep step = program[index]; // set the program step at the given index
+
+      double temp = step.getTemperature();
+      int duration = step.getDuration();
+      double rampRate = step.getRampRate();
+
+      param = sCmd.next();
+
+      while (param != NULL)
+      {
+
+        if (param.startsWith("T="))
+        {
+          temp = param.substring(2).toDouble();
+        }
+        else if (param.startsWith("D="))
+        {
+          duration = param.substring(2).toDouble();
+        }
+        else if (param.startsWith("RR="))
+        {
+          rampRate = param.substring(3).toDouble();
+        }
+        else
+        {
+          Serial.println(F("Invalid parameter"));
+          return;
+        }
+
+        param = sCmd.next();
+      }
+
+      step.setDuration(duration);
+      step.setTemperature(temp);
+      step.setRampRate(rampRate);
+
+      program[index] = step;
+
+      Serial.print(step.getName());
+      Serial.println(F(" program set successfully."));
+    }
+    else
+    {
+      Serial.println(F("Invalid program index."));
+    }
   }
 }
 
@@ -652,6 +727,7 @@ void setup()
   sCmd.addCommand("PRE_HEAT", preHeat);
   sCmd.addCommand("COOLDOWN", cooldown);
   sCmd.addCommand("GET_PROGRAMS", getPrograms);
+  sCmd.addCommand("SET_PROGRAM", setProgram);
 
   // Initialize LCD display
   thermocyclerDisplay.init();
@@ -708,7 +784,7 @@ PRE_HEAT
 
 to set preheat temperature this is the command
 
-PRE_HEAT TARGET=95
+PRE_HEAT T=95
 
 to cooldown the heat block this is the command
 
@@ -724,10 +800,16 @@ PID_TUNE SET_PID P=2 I=1 D=1
 
 to set the PID tune temperature this is the command
 
-PID_TUNE TARGET=95
+PID_TUNE T=95
 
 to get the list of program this is the command
 
 GET_PROGRAMS
 
+to set the program this is the command
+
+SET_PROGRAM S1 T=95 D=50 RR=1
+
 */
+
+

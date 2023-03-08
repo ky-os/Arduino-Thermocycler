@@ -20,24 +20,44 @@ public:
         this->rampRate = rampRate;
     }
 
-    String getName()
+    String getName() const
     {
         return name;
     }
 
-    int getDuration()
+    int getDuration() const
     {
         return duration;
     }
 
-    double getTemperature()
+    double getTemperature() const
     {
         return temperature;
     }
 
-    double getRampRate()
+    double getRampRate() const
     {
         return rampRate;
+    }
+
+    void setName(const String &name)
+    {
+        this->name = name;
+    }
+
+    void setDuration(int duration)
+    {
+        this->duration = duration;
+    }
+
+    void setTemperature(double temperature)
+    {
+        this->temperature = temperature;
+    }
+
+    void setRampRate(double rampRate)
+    {
+        this->rampRate = rampRate;
     }
 };
 
