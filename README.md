@@ -1,4 +1,103 @@
-# Arduino-Thermocycler
+# Arduino Thermocycle Serial Command Handling
+
+This is a simple Arduino project that allows you to control a thermocycler through serial commands. You can start, stop, preheat, and cooldown the heat block, as well as set the PID tune values and the temperature programs.
+
+## Commands
+
+Here are the available commands and their descriptions:
+
+### Start Program
+
+Start the thermocycling program.
+
+```
+START
+```
+
+### Stop Program
+
+Stop the current running program.
+
+```
+STOP
+```
+
+### Preheat Heat Block
+
+Preheat the heat block with the default temperature of 90°C.
+
+```
+PRE_HEAT
+```
+
+### Set Preheat Temperature
+
+Set the preheat temperature to the specified temperature.
+
+```
+PRE_HEAT T=95
+```
+
+### Cooldown Heat Block
+
+Cooldown the heat block.
+
+```
+COOLDOWN
+```
+
+### Get PID Value
+
+Get the PID value.
+
+```
+GET_PID
+```
+
+### Set PID Tune Value
+
+Set the PID tune value with the specified P, I, and D values.
+
+```
+PID_TUNE SET_PID P=2 I=1 D=1
+```
+
+### Set PID Tune Temperature
+
+Set the PID tune temperature to the specified temperature.
+
+```
+PID_TUNE T=95
+```
+
+### Get Program List
+
+Get the list of available temperature programs.
+
+```
+GET_PROGRAMS
+```
+
+### Set Program
+
+Set the program with the specified step, temperature, duration, and ramp rate.
+
+> S1 = DENATURATION
+> S2 = ANNEALING
+> S3 = EXTENTION
+> F = FINAL EXTENTION
+
+```
+SET_PROGRAM S1 T=95 D=50 RR=1
+```
+
+### Set Program Number of Cycles
+
+Set the program number of cycles.
+
+```
+SET_PROGRAM CYCLES=10
+```
 
 ## Program States
 

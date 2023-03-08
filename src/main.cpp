@@ -1,3 +1,52 @@
+/*
+
+arduino thermocycle serial command handling
+
+to start the program this is the command
+
+START
+
+to stop the program this is the command
+
+STOP
+
+to preheat the heat block this is the command with a default temperature of 90c
+
+PRE_HEAT
+
+to set preheat temperature this is the command
+
+PRE_HEAT T=95
+
+to cooldown the heat block this is the command
+
+COOLDOWN
+
+to get the PID value this is the command
+
+GET_PID
+
+to set the PID tune value this is the command
+
+PID_TUNE SET_PID P=2 I=1 D=1
+
+to set the PID tune temperature this is the command
+
+PID_TUNE T=95
+
+to get the list of program this is the command
+
+GET_PROGRAMS
+
+to set the program this is the command
+
+SET_PROGRAM S1 T=95 D=50 RR=1
+
+to set the program cycle this is the command
+
+SET_PROGRAM CYCLES=90
+
+*/
 
 // Include necessary libraries
 #include <SerialCommand.h>
@@ -72,7 +121,7 @@ int cycleCount = 0;
 int numCycles = 2;
 
 // Define the thermocycler program as a sequence of ThermocycleStep objects
-const ThermocycleStep program[] = {
+ThermocycleStep program[] = {
     //(in °C, in seconds, ramp rate)
     ThermocycleStep("Denaturation", 95, 30, 0), // Denaturation
     ThermocycleStep("Annealing", 55, 30, 0),    // Annealing
@@ -90,11 +139,11 @@ ThermocycleStep currentThermocycleStep = program[currentStep];
 void getPID()
 {
   // Send current PID values over serial
-  Serial.print("Current PID values: Kp = ");
+  Serial.print(F("Current PID values: Kp = "));
   Serial.print(Kp);
-  Serial.print(", Ki = ");
+  Serial.print(F(", Ki = "));
   Serial.print(Ki);
-  Serial.print(", Kd = ");
+  Serial.print(F(", Kd = "));
   Serial.println(Kd);
 }
 
@@ -161,7 +210,7 @@ void initPIDValue()
     Ki = savedKi;
     Kd = savedKd;
 
-    Serial.println("PID values loaded from EEPROM.");
+    Serial.println(F("PID values loaded from EEPROM."));
   }
   else
   {
@@ -171,7 +220,7 @@ void initPIDValue()
     EEPROM.put(sizeof(Kp) + sizeof(Ki), Kd);
     EEPROM.put(sizeof(Kp) + sizeof(Ki) + sizeof(Kd), 1);
 
-    Serial.println("Default PID values saved to EEPROM.");
+    Serial.println(F("Default PID values saved to EEPROM."));
   }
 }
 
@@ -192,8 +241,8 @@ void PIDTune()
     // exit PID tuning mode
     else if (param.startsWith("DONE"))
     {
-      programState = Idle;                // set program state to Idle
-      Serial.println("PID tuning done!"); // print message to serial monitor
+      programState = Idle;                   // set program state to Idle
+      Serial.println(F("PID tuning done!")); // print message to serial monitor
 
       // Stop the motor and turn off the motor driver
       digitalWrite(motorPin1, LOW);
@@ -212,8 +261,8 @@ void PIDTune()
       // check if there are any changes made to the PID values
       if (savedKp == Kp || savedKi == Ki || savedKd == Kd)
       {
-        Serial.println("No changes made"); // print message to serial monitor
-        break;                             // exit the loop
+        Serial.println(F("No changes made")); // print message to serial monitor
+        break;                                // exit the loop
       }
       // save the PID values to EEPROM
       int addr = 0;
@@ -226,12 +275,12 @@ void PIDTune()
       EEPROM.put(addr, 1); // save a flag to indicate that the values have been saved
 
       // send a response back to the serial monitor
-      Serial.println("PID values updated and saved to EEPROM.");
+      Serial.println(F("PID values updated and saved to EEPROM."));
     }
     // set the target value
-    else if (param.startsWith("TARGET="))
+    else if (param.startsWith("T="))
     {
-      Setpoint = param.substring(7).toDouble();              // get the target value and convert it to double
+      Setpoint = param.substring(2).toDouble();              // get the target value and convert it to double
       Serial.println("Target sets to: " + String(Setpoint)); // print message to serial monitor
     }
     param = sCmd.next(); // get the next parameter from serial monitor
@@ -254,7 +303,7 @@ void preHeat()
     if (param != NULL)
     {
       // set the target value
-      if (param.startsWith("TARGET="))
+      if (param.startsWith("T="))
       {
         Setpoint = param.substring(7).toDouble();              // get the target value and convert it to double
         Serial.println("Target sets to: " + String(Setpoint)); // print message to serial monitor
@@ -263,7 +312,7 @@ void preHeat()
   }
   else
   {
-    Serial.println("Info: Preheating a running program is not possible.");
+    Serial.println(F("Info: Preheating a running program is not possible."));
   }
 }
 
@@ -283,12 +332,12 @@ void cooldown()
       analogWrite(enablePin1, 0);
       analogWrite(enablePin2, 0);
 
-      Serial.println("Cooling down!"); // print message to serial monitor
+      Serial.println(F("Cooling down!")); // print message to serial monitor
     }
   }
   else
   {
-    Serial.println("Info: Cooling down a running program is not possible.");
+    Serial.println(F("Info: Cooling down a running program is not possible."));
   }
 }
 
@@ -305,34 +354,53 @@ int digitCount(int num)
 
 void getPrograms()
 {
-  Serial.println("\nThermocycle program:\n");
-  Serial.println("|Step Name     |Temperature (C)|Duration (s)|Ramp Rate|");
+  Serial.println(F("\nThermocycle program:\n"));
+  Serial.println(F("|Step Name       |Temperature (C)|Duration (s)|Ramp Rate|"));
 
-  for (int i = 0; i < 4; i++)
+  for (int i = 0; i < sizeof(program) / sizeof(program[0]); i++)
   {
 
     ThermocycleStep step = program[i];
     // Get the duration of the current step
     unsigned long duration = step.getDuration();
 
-    Serial.print("|");
+    Serial.print(F("|"));
     Serial.print(step.getName());
-    Serial.print(" ");
+    Serial.print(F(" "));
+    for (int j = step.getName().length(); j < 15; j++)
+    {
+      Serial.print(F(" "));
+    }
 
-    Serial.print("|");
+    Serial.print(F("|"));
     Serial.print(step.getTemperature());
-    Serial.print(" ");
+    Serial.print(F(" "));
+    for (int j = digitCount(step.getTemperature()); j < 11; j++)
+    {
+      Serial.print(F(" "));
+    }
 
-    Serial.print("|");
+    Serial.print(F("|"));
     Serial.print(duration);
-    Serial.print(" ");
+    Serial.print(F(" "));
+    for (int j = digitCount(duration); j < 11; j++)
+    {
+      Serial.print(F(" "));
+    }
 
-    Serial.print("|");
+    Serial.print(F("|"));
     Serial.print(step.getRampRate());
-    Serial.print(" ");
+    Serial.print(F(" "));
+    for (int j = digitCount(step.getRampRate()); j < 4; j++)
+    {
+      Serial.print(F(" "));
+    }
 
-    Serial.println("|");
+    Serial.println(F("|"));
   }
+
+  Serial.print(F("No. of cycles: "));
+  Serial.println(numCycles);
 }
 
 // Function to start the thermocycling program
@@ -344,20 +412,104 @@ void startProgram()
     programState = Running;
     preHeating = false;
 
-    Serial.println("Program running!");
+    Serial.println(F("Program running!"));
 
     // Display the name and duration of the current step
-    Serial.print("\n\n\nStarting step ");
+    Serial.print(F("\n\n\nStarting step "));
     Serial.print(currentStep + 1);
-    Serial.print(": ");
+    Serial.print(F(": "));
     Serial.print(currentThermocycleStep.getName());
-    Serial.print(" for ");
+    Serial.print(F(" for "));
     Serial.print(currentThermocycleStep.getDuration());
-    Serial.println(" seconds.\n\n\n");
+    Serial.println(F(" seconds.\n\n\n"));
   }
   else
   {
-    Serial.println("Program already running");
+    Serial.println(F("Program already running"));
+  }
+}
+
+void setProgram()
+{
+  String param = sCmd.next(); // get the next parameter from serial monitor
+
+  if (param != NULL)
+  {
+
+    if (param.startsWith("CYCLES="))
+    {
+      numCycles = param.substring(7).toInt();
+    }
+    else
+    {
+
+      int index;
+
+      if (param.startsWith("S1"))
+      {
+        index = 0;
+      }
+      if (param.startsWith("S2"))
+      {
+        index = 1;
+      }
+      if (param.startsWith("S3"))
+      {
+        index = 2;
+      }
+      if (param.startsWith("F"))
+      {
+        index = 3;
+      }
+
+      if (index >= 0 && index < 4)
+      {
+        ThermocycleStep step = program[index]; // set the program step at the given index
+
+        double temp = step.getTemperature();
+        int duration = step.getDuration();
+        double rampRate = step.getRampRate();
+
+        param = sCmd.next();
+
+        while (param != NULL)
+        {
+
+          if (param.startsWith("T="))
+          {
+            temp = param.substring(2).toDouble();
+          }
+          else if (param.startsWith("D="))
+          {
+            duration = param.substring(2).toDouble();
+          }
+          else if (param.startsWith("RR="))
+          {
+            rampRate = param.substring(3).toDouble();
+          }
+          else
+          {
+            Serial.println(F("Invalid parameter"));
+            return;
+          }
+
+          param = sCmd.next();
+        }
+
+        step.setDuration(duration);
+        step.setTemperature(temp);
+        step.setRampRate(rampRate);
+
+        program[index] = step;
+
+        Serial.print(step.getName());
+        Serial.println(F(" program set successfully."));
+      }
+      else
+      {
+        Serial.println(F("Invalid program index."));
+      }
+    }
   }
 }
 
@@ -377,7 +529,7 @@ void stopProgram()
     thermocyclerDisplay.programStopped();
 
     // Print message to serial monitor
-    Serial.println("Program stopped!");
+    Serial.println(F("Program stopped!"));
 
     // Reset the setpoint and program state
     Setpoint = 0;
@@ -385,7 +537,7 @@ void stopProgram()
   }
   else
   {
-    Serial.println("Program not running");
+    Serial.println(F("Program not running"));
   }
 }
 
@@ -405,7 +557,7 @@ void programComplete()
     thermocyclerDisplay.programComplete();
 
     // Print message to serial monitor
-    Serial.println("Program complete!");
+    Serial.println(F("Program complete!"));
 
     // Reset the setpoint, cycle count, current step, and program state
     Setpoint = 0;
@@ -416,7 +568,7 @@ void programComplete()
   }
   else
   {
-    Serial.println("Program not running");
+    Serial.println(F("Program not running"));
   }
 }
 
@@ -478,11 +630,11 @@ void updateTemperatureControl()
 void programRunning()
 {
 
-  //// Set the target temperature based on the current step of the thermocycle with ramp rate
-  //// Setpoint = currentThermocycleStep.getTemperature() + (currentThermocycleStep.getRampRate() * (millis() - startTime) / 1000);
+  // Set the target temperature based on the current step of the thermocycle with ramp rate
+  Setpoint = currentThermocycleStep.getTemperature() + (currentThermocycleStep.getRampRate() * (millis() - startTime) / 1000);
 
-  // Set the target temperature based on the current step of the thermocycle
-  Setpoint = currentThermocycleStep.getTemperature();
+  // // Set the target temperature based on the current step of the thermocycle
+  // Setpoint = currentThermocycleStep.getTemperature();
 
   // Run the Peltier element to heat/cool the system
   updateTemperatureControl();
@@ -508,15 +660,15 @@ void programRunning()
         // Check if the desired number of cycles has been completed
         if (cycleCount == numCycles)
         {
-          Serial.println("Cycles completed.");
+          Serial.println(F("Cycles completed."));
           currentStep++;
         }
         else
         {
           // Display the cycle count and reset the step to zero for the next cycle
-          Serial.print("Cycle ");
+          Serial.print(F("Cycle "));
           Serial.print(cycleCount);
-          Serial.println(" completed.");
+          Serial.println(F(" completed."));
           currentStep = 0;
         }
       }
@@ -538,13 +690,13 @@ void programRunning()
         startTime = millis();
 
         // Display the name and duration of the current step
-        Serial.print("\n\n\nStarting step ");
+        Serial.print(F("\n\n\nStarting step "));
         Serial.print(currentStep + 1);
-        Serial.print(": ");
+        Serial.print(F(": "));
         Serial.print(currentThermocycleStep.getName());
-        Serial.print(" for ");
+        Serial.print(F(" for "));
         Serial.print(currentThermocycleStep.getDuration());
-        Serial.println(" seconds.\n\n\n");
+        Serial.println(F(" seconds.\n\n\n"));
       }
     }
   }
@@ -571,13 +723,12 @@ void dataSerialLog()
   // Print debug information to the serial monitor every 250ms
   if (millis() - serialTimer >= 250)
   {
-    Serial.print(" Set point: ");
+    Serial.print(F(" Set point: "));
     Serial.print(Setpoint);
-    Serial.print(" Ouput: ");
+    Serial.print(F(" Ouput: "));
     Serial.print(Output);
-    Serial.print(" Input: ");
-    Serial.print(Input);
-    Serial.println("");
+    Serial.print(F(" Input: "));
+    Serial.println(Input);
     serialTimer = millis();
   }
 }
@@ -637,6 +788,7 @@ void setup()
   sCmd.addCommand("PRE_HEAT", preHeat);
   sCmd.addCommand("COOLDOWN", cooldown);
   sCmd.addCommand("GET_PROGRAMS", getPrograms);
+  sCmd.addCommand("SET_PROGRAM", setProgram);
 
   // Initialize LCD display
   thermocyclerDisplay.init();
@@ -674,45 +826,3 @@ void loop()
     dataSerialLog(); // Execute the code for logging data to serial port
   }
 }
-
-/*
-
-arduino thermocycle serial command handling
-
-to start the program this is the command
-
-START
-
-to stop the program this is the command
-
-STOP
-
-to preheat the heat block this is the command with a default temperature of 90c
-
-PRE_HEAT
-
-to set preheat temperature this is the command
-
-PRE_HEAT TARGET=95
-
-to cooldown the heat block this is the command
-
-COOLDOWN
-
-to get the PID value this is the command
-
-GET_PID
-
-to set the PID tune value this is the command
-
-PID_TUNE SET_PID P=2 I=1 D=1
-
-to set the PID tune temperature this is the command
-
-PID_TUNE TARGET=95
-
-to get the list of program this is the command
-
-GET_PROGRAMS
-
-*/
