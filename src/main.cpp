@@ -305,7 +305,7 @@ void preHeat()
       // set the target value
       if (param.startsWith("T="))
       {
-        Setpoint = param.substring(7).toDouble();              // get the target value and convert it to double
+        Setpoint = param.substring(2).toDouble();              // get the target value and convert it to double
         Serial.println("Target sets to: " + String(Setpoint)); // print message to serial monitor
       }
     }
@@ -513,6 +513,11 @@ void setProgram()
   }
 }
 
+void serialDataLog()
+{
+  isDataLogging = true;
+}
+
 // Function to stop the thermocycling program
 void stopProgram()
 {
@@ -614,7 +619,7 @@ void updateTemperatureControl()
   }
   else if (Output < 0)
   {
-    analogWrite(motorPin1, Output);
+    analogWrite(motorPin1, abs(Output));
     analogWrite(motorPin2, 0);
     thermalState = Cooling;
   }
@@ -723,11 +728,11 @@ void dataSerialLog()
   // Print debug information to the serial monitor every 250ms
   if (millis() - serialTimer >= 250)
   {
-    Serial.print(F(" Set point: "));
+    Serial.print(F(" Set_point:"));
     Serial.print(Setpoint);
-    Serial.print(F(" Ouput: "));
+    Serial.print(F(" Ouput:"));
     Serial.print(Output);
-    Serial.print(F(" Input: "));
+    Serial.print(F(" Input:"));
     Serial.println(Input);
     serialTimer = millis();
   }
@@ -778,7 +783,7 @@ void setup()
   // Initialize the PID controller
   myPID.SetMode(AUTOMATIC);
   myPID.SetSampleTime(10);
-  myPID.SetOutputLimits(-158, 158);
+  myPID.SetOutputLimits(-255, 255);
 
   // Add serial commands for starting/stopping program, setting/getting PID
   sCmd.addCommand("START", startProgram);
@@ -789,6 +794,7 @@ void setup()
   sCmd.addCommand("COOLDOWN", cooldown);
   sCmd.addCommand("GET_PROGRAMS", getPrograms);
   sCmd.addCommand("SET_PROGRAM", setProgram);
+  sCmd.addCommand("PLOTTER", serialDataLog);
 
   // Initialize LCD display
   thermocyclerDisplay.init();
