@@ -184,7 +184,7 @@ void setPID()
 }
 
 // Function to load PID values from EEPROM
-void loadPIDValues(float &savedKp, float &savedKi, float &savedKd, float &flag)
+void loadPIDValues(double &savedKp, double &savedKi, double &savedKd, int &flag)
 {
   // Load the PID values from EEPROM if they have been saved before
   int addr = 0;
@@ -200,7 +200,9 @@ void loadPIDValues(float &savedKp, float &savedKi, float &savedKd, float &flag)
 void initPIDValue()
 {
 
-  float savedKp, savedKi, savedKd, flag;
+  double savedKp, savedKi, savedKd;
+  int flag;
+
   loadPIDValues(savedKp, savedKi, savedKd, flag);
 
   if (flag == 1)
@@ -255,7 +257,9 @@ void PIDTune()
     // save the PID values to EEPROM
     else if (param.startsWith("SAVE_PID"))
     {
-      float savedKp, savedKi, savedKd, flag;
+      double savedKp, savedKi, savedKd;
+      int flag;
+
       loadPIDValues(savedKp, savedKi, savedKd, flag); // load PID values from EEPROM
 
       // check if there are any changes made to the PID values
