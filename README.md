@@ -46,6 +46,13 @@ Cooldown the heat block.
 COOLDOWN
 ```
 
+### To Display Plotter Values
+
+Serial Data logging.
+
+```
+PLOTTER
+```
 ### Get PID Value
 
 Get the PID value.
@@ -68,6 +75,13 @@ Set the PID tune temperature to the specified temperature.
 
 ```
 PID_TUNE T=95
+```
+### Saving PID Values
+
+Saving PID values to arduino EEPROM.
+
+```
+PID_TUNE SAVE_PID
 ```
 
 ### Get Program List
