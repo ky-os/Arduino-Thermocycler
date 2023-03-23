@@ -134,6 +134,7 @@ unsigned int currentStep = 0;
 unsigned long startTime = 0;
 unsigned long readTemperatureTimer = 0; // Timer for temperature
 unsigned long serialTimer = 0;          // Timer for serial communication
+unsigned long logRate = 250;            // For serial communication
 ThermocycleStep currentThermocycleStep = program[currentStep];
 
 void getPID()
@@ -520,6 +521,16 @@ void setProgram()
 void serialDataLog()
 {
   isDataLogging = true;
+
+  String param = sCmd.next(); // get the next parameter from serial monitor
+
+  if (param != NULL)
+  {
+    if (param.startsWith("R="))
+    {
+      logRate = param.substring(2).toInt();
+    }
+  }
 }
 
 void programReset()
@@ -736,7 +747,7 @@ void programIdle()
 void dataSerialLog()
 {
   // Print debug information to the serial monitor every 250ms
-  if (millis() - serialTimer >= 250)
+  if (millis() - serialTimer >= logRate)
   {
     Serial.print(F(" Set_point:"));
     Serial.print(Setpoint);
