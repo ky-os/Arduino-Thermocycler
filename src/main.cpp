@@ -522,6 +522,16 @@ void serialDataLog()
   isDataLogging = true;
 }
 
+void programReset()
+{
+  // Reset the setpoint, cycle count, current step, and program state
+  Setpoint = 0;
+  cycleCount = 0;
+  currentStep = 0;
+  currentThermocycleStep = program[0];
+  programState = Stopped;
+}
+
 // Function to stop the thermocycling program
 void stopProgram()
 {
@@ -540,8 +550,8 @@ void stopProgram()
     // Print message to serial monitor
     Serial.println(F("Program stopped!"));
 
-    // Reset the setpoint and program state
-    Setpoint = 0;
+    // Reset the program state
+    programReset();
     programState = Stopped;
   }
   else
@@ -568,12 +578,8 @@ void programComplete()
     // Print message to serial monitor
     Serial.println(F("Program complete!"));
 
-    // Reset the setpoint, cycle count, current step, and program state
-    Setpoint = 0;
-    cycleCount = 0;
-    currentStep = 0;
-    currentThermocycleStep = program[0];
-    programState = Stopped;
+    // Reset program state
+    programReset();
   }
   else
   {
