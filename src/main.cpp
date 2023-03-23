@@ -263,7 +263,7 @@ void PIDTune()
       loadPIDValues(savedKp, savedKi, savedKd, flag); // load PID values from EEPROM
 
       // check if there are any changes made to the PID values
-      if (savedKp == Kp || savedKi == Ki || savedKd == Kd)
+      if (savedKp == Kp && savedKi == Ki && savedKd == Kd)
       {
         Serial.println(F("No changes made")); // print message to serial monitor
         break;                                // exit the loop
