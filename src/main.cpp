@@ -408,14 +408,25 @@ void getPrograms()
   Serial.println(numCycles);
 }
 
+void programReset()
+{
+  // Reset the setpoint, cycle count, current step, and program state
+  Setpoint = 0;
+  cycleCount = 0;
+  currentStep = 0;
+  currentThermocycleStep = program[0];
+}
+
 // Function to start the thermocycling program
 void startProgram()
 {
   // Check if the program is not already running
   if (programState != Running)
   {
+    programReset();
     programState = Running;
     preHeating = false;
+    startTime = millis();
 
     Serial.println(F("Program running!"));
 
@@ -531,16 +542,6 @@ void serialDataLog()
       logRate = param.substring(2).toInt();
     }
   }
-}
-
-void programReset()
-{
-  // Reset the setpoint, cycle count, current step, and program state
-  Setpoint = 0;
-  cycleCount = 0;
-  currentStep = 0;
-  currentThermocycleStep = program[0];
-  programState = Stopped;
 }
 
 // Function to stop the thermocycling program
